@@ -1,0 +1,11 @@
+Vivecraft_Source/
+
+AGENTS.md
+
+.idea/
+build/
+run/
+.gradle/
+.vscode/
+
+lib/*

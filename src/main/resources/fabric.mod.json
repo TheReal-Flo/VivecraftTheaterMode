@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "vivecraft_theater_mode",
+  "version": "${version}",
+  "name": "Vivecraft Theater Mode",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/vivecraft_theater_mode/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-datagen": [
+      "dev.justfeli.vtm.client.MainModDataGenerator"
+    ],
+    "client": [
+      "dev.justfeli.vtm.client.MainModClient"
+    ],
+    "main": [
+      "dev.justfeli.vtm.MainMod"
+    ]
+  },
+  "mixins": [
+    "vivecraft_theater_mode.mixins.json",
+    {
+      "config": "vivecraft_theater_mode.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
