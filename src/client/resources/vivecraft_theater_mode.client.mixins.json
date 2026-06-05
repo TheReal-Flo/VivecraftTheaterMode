@@ -4,6 +4,15 @@
   "package": "dev.justfeli.vtm.mixin.client",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "MinecraftClientFramebufferMixin",
+    "GuiMainVRSettingsAccessor",
+    "GuiMainVRSettingsMixin",
+    "GuiVROptionsBaseAccessor",
+    "MinecraftClientAccessor",
+    "MouseTheaterBypassMixin",
+    "VREffectsHelperMixin",
+    "VRPassHelperMixin",
+    "VRSettingsPlayModeMixin"
   ],
   "injectors": {
     "defaultRequire": 1
