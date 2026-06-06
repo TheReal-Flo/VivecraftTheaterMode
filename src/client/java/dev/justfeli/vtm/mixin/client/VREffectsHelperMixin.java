@@ -3,10 +3,13 @@ package dev.justfeli.vtm.mixin.client;
 import dev.justfeli.vtm.client.playmode.TheaterMode;
 import dev.justfeli.vtm.client.render.TheaterRenderer;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.Framebuffer;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.vivecraft.client_vr.render.helpers.ShaderHelper;
 import org.vivecraft.client_vr.render.helpers.VREffectsHelper;
 
 @Mixin(VREffectsHelper.class)
@@ -30,7 +33,11 @@ abstract class VREffectsHelperMixin {
             MinecraftClient.getInstance().currentScreen == null &&
             TheaterRenderer.hasTheaterFramebuffer())
         {
-            TheaterRenderer.renderTheaterLayer(partialTick, depthAlways);
+            Framebuffer guiFramebuffer = org.vivecraft.client_vr.gameplay.screenhandlers.GuiHandler.GUI_FRAMEBUFFER;
+            if (guiFramebuffer != null) {
+                ShaderHelper.blit(guiFramebuffer, TheaterRenderer.getTheaterFramebuffer(), true);
+            }
+            TheaterRenderer.renderTheaterLayer(partialTick, true);
             ci.cancel();
         }
     }

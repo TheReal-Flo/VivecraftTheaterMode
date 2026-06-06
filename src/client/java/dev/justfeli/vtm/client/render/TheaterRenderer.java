@@ -17,6 +17,7 @@ import org.vivecraft.client_xr.render_pass.RenderPassManager;
 import org.vivecraft.client_xr.render_pass.WorldRenderPass;
 
 import dev.justfeli.vtm.client.playmode.TheaterMode;
+import dev.justfeli.vtm.mixin.client.GameOptionsAccessor;
 import dev.justfeli.vtm.mixin.client.MinecraftClientAccessor;
 
 public final class TheaterRenderer {
@@ -53,7 +54,10 @@ public final class TheaterRenderer {
         if (DATA_HOLDER.vrPlayer == null || DATA_HOLDER.vr == null) {
             return;
         }
-        if (MC.world == null || MC.gameRenderer == null) {
+        if (MC.world == null || MC.player == null || MC.interactionManager == null || MC.gameRenderer == null) {
+            return;
+        }
+        if (MC.currentScreen != null || MC.isPaused()) {
             return;
         }
         ensureTheaterFramebuffer();
@@ -64,6 +68,8 @@ public final class TheaterRenderer {
         Framebuffer previousFramebuffer = MC.getFramebuffer();
         WorldRenderPass previousWorldPass = RenderPassManager.WRP;
         var previousPass = DATA_HOLDER.currentPass;
+        GameOptionsAccessor options = (GameOptionsAccessor) MC.options;
+        boolean previousHideGui = options.vtm$isHudHidden();
 
         renderingTheaterFrame = true;
         TheaterMode.beginVanillaBypass();
@@ -76,9 +82,11 @@ public final class TheaterRenderer {
                 theaterFramebuffer.getDepthAttachment(), 1.0
             );
 
+            options.vtm$setHudHidden(true);
             RenderTickCounter renderTickCounter = MC.getRenderTickCounter();
             MC.gameRenderer.render(renderTickCounter, true);
         } finally {
+            options.vtm$setHudHidden(previousHideGui);
             ((MinecraftClientAccessor) MC).vtm$setFramebuffer(previousFramebuffer);
             if (previousWorldPass != null) {
                 DATA_HOLDER.currentPass = previousPass;
@@ -97,7 +105,10 @@ public final class TheaterRenderer {
             return;
         }
 
-        RenderSystem.getDevice().createCommandEncoder().clearDepthTexture(MC.getFramebuffer().getDepthAttachment(), 1.0);
+        RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(
+            MC.getFramebuffer().getColorAttachment(), 0xFF000000,
+            MC.getFramebuffer().getDepthAttachment(), 1.0
+        );
         RenderSystem.getModelViewStack().pushMatrix().identity();
         try {
             RenderHelper.applyVRModelView(DATA_HOLDER.currentPass, RenderSystem.getModelViewStack());

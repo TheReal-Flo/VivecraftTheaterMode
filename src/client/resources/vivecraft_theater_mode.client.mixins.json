@@ -5,13 +5,17 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "MinecraftClientFramebufferMixin",
+    "MinecraftClientRenderMixin",
     "GuiMainVRSettingsAccessor",
     "GuiMainVRSettingsMixin",
     "GuiVROptionsBaseAccessor",
     "MinecraftClientAccessor",
     "MouseTheaterBypassMixin",
+    "GameOptionsAccessor",
+    "GuiHandlerTheaterMixin",
+    "MinecraftClientGameplayBypassMixin",
     "VREffectsHelperMixin",
-    "VRPassHelperMixin",
+    "VRPlayerMixin",
     "VRSettingsPlayModeMixin"
   ],
   "injectors": {
