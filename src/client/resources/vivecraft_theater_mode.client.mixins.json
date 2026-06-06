@@ -13,7 +13,7 @@
     "MouseTheaterBypassMixin",
     "GameOptionsAccessor",
     "GuiHandlerTheaterMixin",
-    "MinecraftClientGameplayBypassMixin",
+    "ClientPlayerEntityTheaterBypassMixin",
     "VREffectsHelperMixin",
     "VRPlayerMixin",
     "VRSettingsPlayModeMixin"

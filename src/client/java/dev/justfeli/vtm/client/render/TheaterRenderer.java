@@ -31,6 +31,8 @@ public final class TheaterRenderer {
 
     private static Framebuffer theaterFramebuffer;
     private static boolean renderingTheaterFrame;
+    private static Vector3f panelAnchorPosition;
+    private static Matrix4f panelAnchorRotation;
 
     private TheaterRenderer() {
     }
@@ -120,12 +122,14 @@ public final class TheaterRenderer {
     }
 
     public static void placeGuiSurface() {
-        if (DATA_HOLDER.vrPlayer == null || DATA_HOLDER.vr == null) {
+        if (!TheaterMode.isActive() || DATA_HOLDER.vrPlayer == null || DATA_HOLDER.vr == null) {
+            resetPanelAnchor();
             return;
         }
 
-        GuiHandler.GUI_POS_ROOM = getPanelRoomPosition();
-        GuiHandler.GUI_ROTATION_ROOM = getPanelRoomRotation(GuiHandler.GUI_POS_ROOM);
+        ensurePanelAnchor();
+        GuiHandler.GUI_POS_ROOM = new Vector3f(panelAnchorPosition);
+        GuiHandler.GUI_ROTATION_ROOM = new Matrix4f(panelAnchorRotation);
         GuiHandler.GUI_SCALE = THEATER_SCALE;
     }
 
@@ -134,8 +138,9 @@ public final class TheaterRenderer {
             return;
         }
 
-        Vector3f panelPosition = getPanelRoomPosition();
-        VREffectsHelper.render2D(partialTick, theaterFramebuffer, panelPosition, getPanelRoomRotation(panelPosition), depthAlways);
+        ensurePanelAnchor();
+        VREffectsHelper.render2D(partialTick, theaterFramebuffer, new Vector3f(panelAnchorPosition),
+            new Matrix4f(panelAnchorRotation), depthAlways);
     }
 
     private static void ensureTheaterFramebuffer() {
@@ -144,15 +149,24 @@ public final class TheaterRenderer {
         }
     }
 
-    private static Vector3f getPanelRoomPosition() {
+    private static void ensurePanelAnchor() {
+        if (panelAnchorPosition != null && panelAnchorRotation != null) {
+            return;
+        }
+
         Vector3f headPosition = DATA_HOLDER.vrPlayer.vrdata_room_pre.hmd.getPositionF();
         float yaw = getAverageYawRadians();
         Vector3f direction = new Vector3f(-MathHelper.sin(yaw), 0.0F, MathHelper.cos(yaw));
-        return new Vector3f(headPosition).add(direction.mul(THEATER_DISTANCE));
+        panelAnchorPosition = new Vector3f(headPosition).add(direction.mul(THEATER_DISTANCE));
+        panelAnchorRotation = getPanelRoomRotation(headPosition, panelAnchorPosition);
     }
 
-    private static Matrix4f getPanelRoomRotation(Vector3f roomPosition) {
-        Vector3f headPosition = DATA_HOLDER.vrPlayer.vrdata_room_pre.hmd.getPositionF();
+    private static void resetPanelAnchor() {
+        panelAnchorPosition = null;
+        panelAnchorRotation = null;
+    }
+
+    private static Matrix4f getPanelRoomRotation(Vector3f headPosition, Vector3f roomPosition) {
         Vector3f look = roomPosition.sub(headPosition, new Vector3f());
         float pitch = (float) Math.asin(look.y / look.length());
         float yaw = MathHelper.PI + (float) Math.atan2(look.x, look.z);
