@@ -5,9 +5,12 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.SimpleFramebuffer;
 import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.render.RenderTickCounter;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.math.MathHelper;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.vivecraft.api.client.data.RenderPass;
 import org.vivecraft.client_vr.ClientDataHolderVR;
 import org.vivecraft.client_vr.extensions.GameRendererExtension;
 import org.vivecraft.client_vr.gameplay.screenhandlers.GuiHandler;
@@ -34,11 +37,46 @@ public final class TheaterRenderer {
     private static Vector3f panelAnchorPosition;
     private static Matrix4f panelAnchorRotation;
 
+    private static float cleanYaw;
+    private static float cleanPitch;
+    private static boolean hasCleanRotation;
+    private static float previousPlayerYaw;
+    private static float previousPlayerPitch;
+    private static float previousPlayerLastYaw;
+    private static float previousPlayerLastPitch;
+    private static float previousPlayerHeadYaw;
+    private static float previousPlayerBodyYaw;
+    private static boolean playerRotationOverridden;
+
     private TheaterRenderer() {
     }
 
     public static boolean isRenderingTheaterFrame() {
         return renderingTheaterFrame;
+    }
+
+    /**
+     * Stores the player's mouse-driven yaw/pitch at a point where it is known to be clean
+     * (right after vanilla mouse look runs), so the theater camera can use it instead of the
+     * entity rotation that Vivecraft's render-view-entity logic transiently overwrites with the
+     * HMD pose.
+     */
+    public static void captureCleanRotation(float yaw, float pitch) {
+        cleanYaw = yaw;
+        cleanPitch = pitch;
+        hasCleanRotation = true;
+    }
+
+    public static boolean hasCleanRotation() {
+        return hasCleanRotation;
+    }
+
+    public static float getCleanYaw() {
+        return cleanYaw;
+    }
+
+    public static float getCleanPitch() {
+        return cleanPitch;
     }
 
     public static Framebuffer getTheaterFramebuffer() {
@@ -49,17 +87,20 @@ public final class TheaterRenderer {
         return theaterFramebuffer != null;
     }
 
+    public static boolean shouldRenderGameplayFrame() {
+        return TheaterMode.isActive() &&
+            DATA_HOLDER.vrPlayer != null &&
+            DATA_HOLDER.vr != null &&
+            MC.world != null &&
+            MC.player != null &&
+            MC.interactionManager != null &&
+            MC.gameRenderer != null &&
+            MC.currentScreen == null &&
+            !MC.isPaused();
+    }
+
     public static void renderVanillaFrameToGui() {
-        if (renderingTheaterFrame || !TheaterMode.isActive()) {
-            return;
-        }
-        if (DATA_HOLDER.vrPlayer == null || DATA_HOLDER.vr == null) {
-            return;
-        }
-        if (MC.world == null || MC.player == null || MC.interactionManager == null || MC.gameRenderer == null) {
-            return;
-        }
-        if (MC.currentScreen != null || MC.isPaused()) {
+        if (renderingTheaterFrame || !shouldRenderGameplayFrame()) {
             return;
         }
         ensureTheaterFramebuffer();
@@ -68,6 +109,8 @@ public final class TheaterRenderer {
         }
 
         Framebuffer previousFramebuffer = MC.getFramebuffer();
+        MinecraftClientAccessor clientAccessor = (MinecraftClientAccessor) MC;
+        Entity previousCameraEntity = clientAccessor.vtm$getCameraEntity();
         WorldRenderPass previousWorldPass = RenderPassManager.WRP;
         var previousPass = DATA_HOLDER.currentPass;
         GameOptionsAccessor options = (GameOptionsAccessor) MC.options;
@@ -77,7 +120,8 @@ public final class TheaterRenderer {
         TheaterMode.beginVanillaBypass();
         try {
             RenderPassManager.setVanillaRenderPass();
-            ((MinecraftClientAccessor) MC).vtm$setFramebuffer(theaterFramebuffer);
+            clientAccessor.vtm$setFramebuffer(theaterFramebuffer);
+            clientAccessor.vtm$setCameraEntity(MC.player);
             theaterFramebuffer.resize(THEATER_WIDTH, THEATER_HEIGHT);
             RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(
                 theaterFramebuffer.getColorAttachment(), 0xFF000000,
@@ -85,18 +129,22 @@ public final class TheaterRenderer {
             );
 
             options.vtm$setHudHidden(true);
+            vtm$applyCleanPlayerRotation();
             RenderTickCounter renderTickCounter = MC.getRenderTickCounter();
+            MC.gameRenderer.getCamera().update(
+                MC.world,
+                MC.player,
+                false,
+                false,
+                renderTickCounter.getTickProgress(true)
+            );
             MC.gameRenderer.render(renderTickCounter, true);
         } finally {
+            vtm$restorePlayerRotation();
             options.vtm$setHudHidden(previousHideGui);
-            ((MinecraftClientAccessor) MC).vtm$setFramebuffer(previousFramebuffer);
-            if (previousWorldPass != null) {
-                DATA_HOLDER.currentPass = previousPass;
-                RenderPassManager.setWorldRenderPass(previousWorldPass);
-            } else {
-                RenderPassManager.setVanillaRenderPass();
-                DATA_HOLDER.currentPass = previousPass;
-            }
+            clientAccessor.vtm$setFramebuffer(previousFramebuffer);
+            clientAccessor.vtm$setCameraEntity(previousCameraEntity);
+            restorePreviousRenderPass(previousWorldPass, previousPass);
             TheaterMode.endVanillaBypass();
             renderingTheaterFrame = false;
         }
@@ -143,6 +191,48 @@ public final class TheaterRenderer {
             new Matrix4f(panelAnchorRotation), depthAlways);
     }
 
+    private static void vtm$applyCleanPlayerRotation() {
+        if (!hasCleanRotation || MC.player == null || playerRotationOverridden) {
+            return;
+        }
+
+        previousPlayerYaw = MC.player.getYaw();
+        previousPlayerPitch = MC.player.getPitch();
+        previousPlayerLastYaw = MC.player.lastYaw;
+        previousPlayerLastPitch = MC.player.lastPitch;
+        MC.player.setYaw(cleanYaw);
+        MC.player.setPitch(cleanPitch);
+        MC.player.lastYaw = cleanYaw;
+        MC.player.lastPitch = cleanPitch;
+
+        if (MC.player instanceof LivingEntity livingEntity) {
+            previousPlayerHeadYaw = livingEntity.headYaw;
+            previousPlayerBodyYaw = livingEntity.bodyYaw;
+            livingEntity.headYaw = cleanYaw;
+            livingEntity.bodyYaw = cleanYaw;
+        }
+
+        playerRotationOverridden = true;
+    }
+
+    private static void vtm$restorePlayerRotation() {
+        if (!playerRotationOverridden || MC.player == null) {
+            return;
+        }
+
+        MC.player.setYaw(previousPlayerYaw);
+        MC.player.setPitch(previousPlayerPitch);
+        MC.player.lastYaw = previousPlayerLastYaw;
+        MC.player.lastPitch = previousPlayerLastPitch;
+
+        if (MC.player instanceof LivingEntity livingEntity) {
+            livingEntity.headYaw = previousPlayerHeadYaw;
+            livingEntity.bodyYaw = previousPlayerBodyYaw;
+        }
+
+        playerRotationOverridden = false;
+    }
+
     private static void ensureTheaterFramebuffer() {
         if (theaterFramebuffer == null) {
             theaterFramebuffer = new SimpleFramebuffer("Theater", THEATER_WIDTH, THEATER_HEIGHT, true);
@@ -154,7 +244,8 @@ public final class TheaterRenderer {
             return;
         }
 
-        Vector3f headPosition = DATA_HOLDER.vrPlayer.vrdata_room_pre.hmd.getPositionF();
+        Vector3f liveHeadPosition = DATA_HOLDER.vrPlayer.vrdata_room_pre.hmd.getPositionF();
+        Vector3f headPosition = new Vector3f(0.0F, liveHeadPosition.y, 0.0F);
         float yaw = getAverageYawRadians();
         Vector3f direction = new Vector3f(-MathHelper.sin(yaw), 0.0F, MathHelper.cos(yaw));
         panelAnchorPosition = new Vector3f(headPosition).add(direction.mul(THEATER_DISTANCE));
@@ -164,6 +255,53 @@ public final class TheaterRenderer {
     private static void resetPanelAnchor() {
         panelAnchorPosition = null;
         panelAnchorRotation = null;
+    }
+
+    private static void restorePreviousRenderPass(WorldRenderPass previousWorldPass, RenderPass previousPass) {
+        if (previousWorldPass != null) {
+            RenderPassManager.setWorldRenderPass(previousWorldPass);
+            DATA_HOLDER.currentPass = getCompatibleRenderPass(previousWorldPass, previousPass);
+            return;
+        }
+
+        if (previousPass == RenderPass.GUI) {
+            RenderPassManager.setGUIRenderPass();
+            return;
+        }
+
+        if (previousPass == RenderPass.MIRROR) {
+            RenderPassManager.setMirrorRenderPass();
+            return;
+        }
+
+        RenderPassManager.setVanillaRenderPass();
+    }
+
+    private static RenderPass getCompatibleRenderPass(WorldRenderPass previousWorldPass, RenderPass previousPass) {
+        if (previousPass != null && WorldRenderPass.getByRenderPass(previousPass) == previousWorldPass) {
+            return previousPass;
+        }
+
+        if (previousWorldPass == WorldRenderPass.STEREO_XR) {
+            return RenderPass.LEFT;
+        }
+        if (previousWorldPass == WorldRenderPass.CENTER) {
+            return RenderPass.CENTER;
+        }
+        if (previousWorldPass == WorldRenderPass.MIXED_REALITY) {
+            return RenderPass.THIRD;
+        }
+        if (previousWorldPass == WorldRenderPass.LEFT_TELESCOPE) {
+            return RenderPass.SCOPEL;
+        }
+        if (previousWorldPass == WorldRenderPass.RIGHT_TELESCOPE) {
+            return RenderPass.SCOPER;
+        }
+        if (previousWorldPass == WorldRenderPass.CAMERA) {
+            return RenderPass.CAMERA;
+        }
+
+        return RenderPass.VANILLA;
     }
 
     private static Matrix4f getPanelRoomRotation(Vector3f headPosition, Vector3f roomPosition) {

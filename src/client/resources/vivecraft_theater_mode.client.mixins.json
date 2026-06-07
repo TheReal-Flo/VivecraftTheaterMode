@@ -6,16 +6,19 @@
   "client": [
     "MinecraftClientFramebufferMixin",
     "MinecraftClientRenderMixin",
+    "ClientPlayerEntityMoveMixin",
+    "EntityLookTheaterMixin",
+    "MouseTheaterBypassMixin",
+    "KeyboardInputTheaterBypassMixin",
     "GuiMainVRSettingsAccessor",
     "GuiMainVRSettingsMixin",
     "GuiVROptionsBaseAccessor",
     "MinecraftClientAccessor",
-    "MouseTheaterBypassMixin",
     "GameOptionsAccessor",
     "GuiHandlerTheaterMixin",
-    "ClientPlayerEntityTheaterBypassMixin",
     "VREffectsHelperMixin",
     "VRPlayerMixin",
+    "XRCameraTheaterMixin",
     "VRSettingsPlayModeMixin"
   ],
   "injectors": {
