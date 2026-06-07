@@ -20,7 +20,6 @@ import org.vivecraft.client_xr.render_pass.RenderPassManager;
 import org.vivecraft.client_xr.render_pass.WorldRenderPass;
 
 import dev.justfeli.vtm.client.playmode.TheaterMode;
-import dev.justfeli.vtm.mixin.client.GameOptionsAccessor;
 import dev.justfeli.vtm.mixin.client.MinecraftClientAccessor;
 
 public final class TheaterRenderer {
@@ -113,9 +112,6 @@ public final class TheaterRenderer {
         Entity previousCameraEntity = clientAccessor.vtm$getCameraEntity();
         WorldRenderPass previousWorldPass = RenderPassManager.WRP;
         var previousPass = DATA_HOLDER.currentPass;
-        GameOptionsAccessor options = (GameOptionsAccessor) MC.options;
-        boolean previousHideGui = options.vtm$isHudHidden();
-
         renderingTheaterFrame = true;
         TheaterMode.beginVanillaBypass();
         try {
@@ -128,7 +124,6 @@ public final class TheaterRenderer {
                 theaterFramebuffer.getDepthAttachment(), 1.0
             );
 
-            options.vtm$setHudHidden(true);
             vtm$applyCleanPlayerRotation();
             RenderTickCounter renderTickCounter = MC.getRenderTickCounter();
             MC.gameRenderer.getCamera().update(
@@ -138,10 +133,12 @@ public final class TheaterRenderer {
                 false,
                 renderTickCounter.getTickProgress(true)
             );
-            MC.gameRenderer.render(renderTickCounter, true);
+            ((GameRendererExtension) MC.gameRenderer).vivecraft$resetProjectionMatrix(
+                renderTickCounter.getTickProgress(false)
+            );
+            MC.gameRenderer.renderWorld(renderTickCounter);
         } finally {
             vtm$restorePlayerRotation();
-            options.vtm$setHudHidden(previousHideGui);
             clientAccessor.vtm$setFramebuffer(previousFramebuffer);
             clientAccessor.vtm$setCameraEntity(previousCameraEntity);
             restorePreviousRenderPass(previousWorldPass, previousPass);
@@ -192,7 +189,7 @@ public final class TheaterRenderer {
     }
 
     private static void vtm$applyCleanPlayerRotation() {
-        if (!hasCleanRotation || MC.player == null || playerRotationOverridden) {
+        if (MC.player == null || playerRotationOverridden) {
             return;
         }
 
@@ -200,16 +197,45 @@ public final class TheaterRenderer {
         previousPlayerPitch = MC.player.getPitch();
         previousPlayerLastYaw = MC.player.lastYaw;
         previousPlayerLastPitch = MC.player.lastPitch;
-        MC.player.setYaw(cleanYaw);
-        MC.player.setPitch(cleanPitch);
-        MC.player.lastYaw = cleanYaw;
-        MC.player.lastPitch = cleanPitch;
+
+        float renderYaw;
+        float renderPitch;
+        float renderLastYaw;
+        float renderLastPitch;
+        float renderHeadYaw;
+        float renderBodyYaw;
+
+        if (hasCleanRotation) {
+            renderYaw = cleanYaw;
+            renderPitch = cleanPitch;
+            renderLastYaw = cleanYaw;
+            renderLastPitch = cleanPitch;
+            renderHeadYaw = cleanYaw;
+            renderBodyYaw = cleanYaw;
+        } else {
+            renderYaw = MC.player.getYaw();
+            renderPitch = MC.player.getPitch();
+            renderLastYaw = MC.player.lastYaw;
+            renderLastPitch = MC.player.lastPitch;
+            if (MC.player instanceof LivingEntity livingEntity) {
+                renderHeadYaw = livingEntity.headYaw;
+                renderBodyYaw = livingEntity.bodyYaw;
+            } else {
+                renderHeadYaw = renderYaw;
+                renderBodyYaw = renderYaw;
+            }
+        }
+
+        MC.player.setYaw(renderYaw);
+        MC.player.setPitch(renderPitch);
+        MC.player.lastYaw = renderLastYaw;
+        MC.player.lastPitch = renderLastPitch;
 
         if (MC.player instanceof LivingEntity livingEntity) {
             previousPlayerHeadYaw = livingEntity.headYaw;
             previousPlayerBodyYaw = livingEntity.bodyYaw;
-            livingEntity.headYaw = cleanYaw;
-            livingEntity.bodyYaw = cleanYaw;
+            livingEntity.headYaw = renderHeadYaw;
+            livingEntity.bodyYaw = renderBodyYaw;
         }
 
         playerRotationOverridden = true;

@@ -4,7 +4,6 @@ import dev.justfeli.vtm.client.playmode.TheaterMode;
 import dev.justfeli.vtm.client.render.TheaterRenderer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.Framebuffer;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;

@@ -16,9 +16,9 @@
     "MinecraftClientAccessor",
     "GameOptionsAccessor",
     "GuiHandlerTheaterMixin",
+    "RenderPassTypeTheaterMixin",
     "VREffectsHelperMixin",
     "VRPlayerMixin",
-    "XRCameraTheaterMixin",
     "VRSettingsPlayModeMixin"
   ],
   "injectors": {

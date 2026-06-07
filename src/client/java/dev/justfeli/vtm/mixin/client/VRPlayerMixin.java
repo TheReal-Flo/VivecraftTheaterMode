@@ -5,7 +5,6 @@ import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -15,18 +14,6 @@ import org.vivecraft.client_vr.gameplay.VRPlayer;
 
 @Mixin(VRPlayer.class)
 abstract class VRPlayerMixin {
-    @Shadow
-    public Vec3d roomOrigin;
-
-    @Shadow
-    public VRData vrdata_world_pre;
-
-    @Shadow
-    public VRData vrdata_world_post;
-
-    @Shadow
-    public abstract void snapRoomOriginToPlayerEntity(net.minecraft.entity.Entity entity, boolean reset, boolean instant);
-
     @Inject(method = "doPermanentLookOverride", at = @At("HEAD"), cancellable = true)
     private void vtm$disablePermanentLookOverride(ClientPlayerEntity player, VRData data, CallbackInfo ci) {
         if (TheaterMode.isActive()) {
