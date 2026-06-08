@@ -45,6 +45,7 @@ public final class TheaterRenderer {
     private static float previousPlayerLastPitch;
     private static float previousPlayerHeadYaw;
     private static float previousPlayerBodyYaw;
+    private static float previousPlayerEyeHeight;
     private static boolean playerRotationOverridden;
 
     private TheaterRenderer() {
@@ -197,6 +198,7 @@ public final class TheaterRenderer {
         previousPlayerPitch = MC.player.getPitch();
         previousPlayerLastYaw = MC.player.lastYaw;
         previousPlayerLastPitch = MC.player.lastPitch;
+        previousPlayerEyeHeight = MC.player.eyeHeight;
 
         float renderYaw;
         float renderPitch;
@@ -221,6 +223,7 @@ public final class TheaterRenderer {
         MC.player.setPitch(renderPitch);
         MC.player.lastYaw = renderLastYaw;
         MC.player.lastPitch = renderLastPitch;
+        MC.player.eyeHeight = MC.player.getStandingEyeHeight();
 
         if (MC.player instanceof LivingEntity livingEntity) {
             previousPlayerHeadYaw = livingEntity.headYaw;
@@ -241,6 +244,7 @@ public final class TheaterRenderer {
         MC.player.setPitch(previousPlayerPitch);
         MC.player.lastYaw = previousPlayerLastYaw;
         MC.player.lastPitch = previousPlayerLastPitch;
+        MC.player.eyeHeight = previousPlayerEyeHeight;
 
         if (MC.player instanceof LivingEntity livingEntity) {
             livingEntity.headYaw = previousPlayerHeadYaw;
