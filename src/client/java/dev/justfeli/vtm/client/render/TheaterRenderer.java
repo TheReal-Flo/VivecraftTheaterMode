@@ -20,6 +20,7 @@ import org.vivecraft.client_xr.render_pass.RenderPassManager;
 import org.vivecraft.client_xr.render_pass.WorldRenderPass;
 
 import dev.justfeli.vtm.client.playmode.TheaterMode;
+import dev.justfeli.vtm.mixin.client.EntityAccessor;
 import dev.justfeli.vtm.mixin.client.MinecraftClientAccessor;
 
 public final class TheaterRenderer {
@@ -198,7 +199,8 @@ public final class TheaterRenderer {
         previousPlayerPitch = MC.player.getPitch();
         previousPlayerLastYaw = MC.player.lastYaw;
         previousPlayerLastPitch = MC.player.lastPitch;
-        previousPlayerEyeHeight = MC.player.eyeHeight;
+        EntityAccessor playerAccessor = (EntityAccessor) MC.player;
+        previousPlayerEyeHeight = playerAccessor.vtm$getStandingEyeHeightField();
 
         float renderYaw;
         float renderPitch;
@@ -223,7 +225,7 @@ public final class TheaterRenderer {
         MC.player.setPitch(renderPitch);
         MC.player.lastYaw = renderLastYaw;
         MC.player.lastPitch = renderLastPitch;
-        MC.player.eyeHeight = MC.player.getStandingEyeHeight();
+        playerAccessor.vtm$setStandingEyeHeightField(MC.player.getEyeHeight(MC.player.getPose()));
 
         if (MC.player instanceof LivingEntity livingEntity) {
             previousPlayerHeadYaw = livingEntity.headYaw;
@@ -244,7 +246,7 @@ public final class TheaterRenderer {
         MC.player.setPitch(previousPlayerPitch);
         MC.player.lastYaw = previousPlayerLastYaw;
         MC.player.lastPitch = previousPlayerLastPitch;
-        MC.player.eyeHeight = previousPlayerEyeHeight;
+        ((EntityAccessor) MC.player).vtm$setStandingEyeHeightField(previousPlayerEyeHeight);
 
         if (MC.player instanceof LivingEntity livingEntity) {
             livingEntity.headYaw = previousPlayerHeadYaw;

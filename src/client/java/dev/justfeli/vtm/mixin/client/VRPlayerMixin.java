@@ -14,6 +14,13 @@ import org.vivecraft.client_vr.gameplay.VRPlayer;
 
 @Mixin(VRPlayer.class)
 abstract class VRPlayerMixin {
+    @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
+    private void vtm$disableVrGameplayTick(ClientPlayerEntity player, CallbackInfo ci) {
+        if (TheaterMode.isActive()) {
+            ci.cancel();
+        }
+    }
+
     @Inject(method = "doPermanentLookOverride", at = @At("HEAD"), cancellable = true)
     private void vtm$disablePermanentLookOverride(ClientPlayerEntity player, VRData data, CallbackInfo ci) {
         if (TheaterMode.isActive()) {
