@@ -7,9 +7,7 @@ import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.vivecraft.api.client.data.RenderPass;
@@ -207,26 +205,16 @@ public final class TheaterRenderer {
         float renderHeadYaw;
         float renderBodyYaw;
 
-        Rotation renderRotation = vtm$getAuthoritativeRenderRotation();
-        if (renderRotation != null) {
-            renderYaw = renderRotation.yaw();
-            renderPitch = renderRotation.pitch();
-            renderLastYaw = renderYaw;
-            renderLastPitch = renderPitch;
+        renderYaw = MC.player.getYaw();
+        renderPitch = MC.player.getPitch();
+        renderLastYaw = MC.player.lastYaw;
+        renderLastPitch = MC.player.lastPitch;
+        if (MC.player instanceof LivingEntity livingEntity) {
+            renderHeadYaw = livingEntity.headYaw;
+            renderBodyYaw = livingEntity.bodyYaw;
+        } else {
             renderHeadYaw = renderYaw;
             renderBodyYaw = renderYaw;
-        } else {
-            renderYaw = MC.player.getYaw();
-            renderPitch = MC.player.getPitch();
-            renderLastYaw = MC.player.lastYaw;
-            renderLastPitch = MC.player.lastPitch;
-            if (MC.player instanceof LivingEntity livingEntity) {
-                renderHeadYaw = livingEntity.headYaw;
-                renderBodyYaw = livingEntity.bodyYaw;
-            } else {
-                renderHeadYaw = renderYaw;
-                renderBodyYaw = renderYaw;
-            }
         }
 
         MC.player.setYaw(renderYaw);
@@ -242,47 +230,6 @@ public final class TheaterRenderer {
         }
 
         playerRotationOverridden = true;
-    }
-
-    private static Rotation vtm$getAuthoritativeRenderRotation() {
-        if (MC.player == null) {
-            return null;
-        }
-
-        Vec3d target = null;
-        if (MC.crosshairTarget != null && MC.crosshairTarget.getType() != HitResult.Type.MISS) {
-            target = MC.crosshairTarget.getPos();
-        } else if (DATA_HOLDER.vrPlayer != null && DATA_HOLDER.vrPlayer.crossVec != null) {
-            target = DATA_HOLDER.vrPlayer.crossVec;
-        }
-
-        if (target != null) {
-            Rotation fromTarget = vtm$getRotationTo(target);
-            if (fromTarget != null) {
-                return fromTarget;
-            }
-        }
-
-        if (hasCleanRotation) {
-            return new Rotation(cleanYaw, cleanPitch);
-        }
-
-        return null;
-    }
-
-    private static Rotation vtm$getRotationTo(Vec3d target) {
-        Vec3d direction = target.subtract(MC.player.getEyePos());
-        double length = direction.length();
-        if (length < 1.0E-5D) {
-            return null;
-        }
-
-        float yaw = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));
-        float pitch = (float) Math.toDegrees(Math.asin(MathHelper.clamp(-direction.y / length, -1.0D, 1.0D)));
-        return new Rotation(yaw, MathHelper.clamp(pitch, -90.0F, 90.0F));
-    }
-
-    private record Rotation(float yaw, float pitch) {
     }
 
     private static void vtm$restorePlayerRotation() {
