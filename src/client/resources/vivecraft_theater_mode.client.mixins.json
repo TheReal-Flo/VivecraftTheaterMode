@@ -25,6 +25,7 @@
     "MinecraftClientAccessor",
     "GameOptionsAccessor",
     "GuiHandlerTheaterMixin",
+    "InGameHudCrosshairTheaterMixin",
     "RenderPassTypeTheaterMixin",
     "VREffectsHelperMixin",
     "VRPlayerMixin",
