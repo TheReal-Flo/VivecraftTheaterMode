@@ -3,9 +3,15 @@
   "id": "vivecraft_theater_mode",
   "version": "${version}",
   "name": "Vivecraft Theater Mode",
-  "description": "",
-  "authors": [],
-  "contact": {},
+  "description": "Recreates GearVR-style Theater mode for Vivecraft",
+  "authors": [
+    "JxstFeli"
+  ],
+  "contact": {
+    "homepage": "https://github.com/TheReal-Flo/vivecraft_theater_mode",
+    "sources": "https://github.com/TheReal-Flo/vivecraft_theater_mode",
+    "issues": "https://github.com/TheReal-Flo/vivecraft_theater_mode/issues"
+  },
   "license": "MIT",
   "icon": "assets/vivecraft_theater_mode/icon.png",
   "environment": "client",

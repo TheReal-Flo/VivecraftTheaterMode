@@ -28,6 +28,7 @@
     "GuiHandlerTheaterMixin",
     "InGameHudCrosshairTheaterMixin",
     "RenderPassTypeTheaterMixin",
+    "ScreenBackgroundTheaterMixin",
     "VREffectsHelperMixin",
     "VRPassHelperCursorTheaterMixin",
     "VRPlayerMixin",
