@@ -34,6 +34,7 @@ public final class TheaterRenderer {
 
     private static Framebuffer theaterFramebuffer;
     private static boolean renderingTheaterFrame;
+    private static boolean renderingTheaterPanel;
     private static Vector3f panelAnchorPosition;
     private static Matrix4f panelAnchorRotation;
 
@@ -54,6 +55,10 @@ public final class TheaterRenderer {
 
     public static boolean isRenderingTheaterFrame() {
         return renderingTheaterFrame;
+    }
+
+    public static boolean isRenderingTheaterPanel() {
+        return renderingTheaterPanel;
     }
 
     /**
@@ -201,8 +206,16 @@ public final class TheaterRenderer {
         }
 
         ensurePanelAnchor();
-        VREffectsHelper.render2D(partialTick, theaterFramebuffer, new Vector3f(panelAnchorPosition),
-            new Matrix4f(panelAnchorRotation), depthAlways);
+        // Mark this render2D as the theater screen so its panel quad is drawn opaque (see
+        // VREffectsHelperMixin): the world framebuffer has correct sky colour but alpha 0 in sky
+        // areas, and the default translucent panel lets the menu environment bleed through there.
+        renderingTheaterPanel = true;
+        try {
+            VREffectsHelper.render2D(partialTick, theaterFramebuffer, new Vector3f(panelAnchorPosition),
+                new Matrix4f(panelAnchorRotation), depthAlways);
+        } finally {
+            renderingTheaterPanel = false;
+        }
     }
 
     private static void vtm$applyCleanPlayerRotation() {
