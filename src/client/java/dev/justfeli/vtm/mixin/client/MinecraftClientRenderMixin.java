@@ -37,7 +37,7 @@ abstract class MinecraftClientRenderMixin {
         )
     )
     private void vtm$renderTheaterFramebufferAfterMainRender(boolean tick, CallbackInfo ci) {
-        if (TheaterRenderer.shouldRenderGameplayFrame()) {
+        if (TheaterRenderer.shouldRenderWorldFrame()) {
             TheaterRenderer.renderVanillaFrameToGui();
         }
     }

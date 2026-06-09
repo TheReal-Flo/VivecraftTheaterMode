@@ -3,7 +3,6 @@ package dev.justfeli.vtm.mixin.client;
 import com.mojang.blaze3d.textures.GpuTexture;
 import dev.justfeli.vtm.client.playmode.TheaterMode;
 import dev.justfeli.vtm.client.render.TheaterRenderer;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.render.RenderLayer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -32,10 +31,11 @@ abstract class VREffectsHelperMixin {
 
     @Inject(method = "renderGuiLayer(FZ)V", at = @At("HEAD"), cancellable = true)
     private static void vtm$renderTheaterLayer(float partialTick, boolean depthAlways, CallbackInfo ci) {
-        if (TheaterMode.isActive() &&
-            MinecraftClient.getInstance().currentScreen == null &&
-            TheaterRenderer.hasTheaterFramebuffer())
-        {
+        // Take over the GUI layer for the theater panel whether or not a screen is open. With no
+        // screen this composites the HUD onto the live game frame; with a screen open it composites
+        // the screen's framebuffer on top of the game frame, so pause/inventory/etc. render on the
+        // panel over the game like vanilla, instead of Vivecraft's separate floating popup.
+        if (TheaterRenderer.shouldCompositeTheaterScreen()) {
             Framebuffer guiFramebuffer = org.vivecraft.client_vr.gameplay.screenhandlers.GuiHandler.GUI_FRAMEBUFFER;
             if (guiFramebuffer != null) {
                 ShaderHelper.blit(guiFramebuffer, TheaterRenderer.getTheaterFramebuffer(), true);

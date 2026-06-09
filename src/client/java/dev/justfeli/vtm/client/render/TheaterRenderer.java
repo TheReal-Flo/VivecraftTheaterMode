@@ -108,20 +108,42 @@ public final class TheaterRenderer {
         return theaterFramebuffer != null;
     }
 
-    public static boolean shouldRenderGameplayFrame() {
+    /**
+     * Whether a fresh world frame should be captured into the theater framebuffer this frame.
+     *
+     * <p>This deliberately does not exclude screens or the paused state: the world is re-rendered into
+     * the panel every frame (frozen when paused, just like vanilla keeps drawing the world behind the
+     * pause menu) so the game stays visible behind the GUI. Capturing a clean world frame each time
+     * also matters because the GUI is alpha-blended on top afterwards; if we reused a stale frame the
+     * translucent screen background would re-composite every frame and darken the backdrop.
+     */
+    public static boolean shouldRenderWorldFrame() {
         return TheaterMode.isActive() &&
             DATA_HOLDER.vrPlayer != null &&
             DATA_HOLDER.vr != null &&
             MC.world != null &&
             MC.player != null &&
             MC.interactionManager != null &&
-            MC.gameRenderer != null &&
-            MC.currentScreen == null &&
-            !MC.isPaused();
+            MC.gameRenderer != null;
+    }
+
+    /**
+     * Whether the theater panel should take over the GUI layer this frame: i.e. composite the GUI
+     * (HUD or open screen) onto the theater framebuffer and draw it on the panel, instead of letting
+     * Vivecraft draw its separate floating popup. Requires an in-world context with a captured frame;
+     * in the main menu (no world) Vivecraft keeps drawing its normal menu popup.
+     */
+    public static boolean shouldCompositeTheaterScreen() {
+        return TheaterMode.isActive() &&
+            hasTheaterFramebuffer() &&
+            DATA_HOLDER.vrPlayer != null &&
+            DATA_HOLDER.vr != null &&
+            MC.world != null &&
+            MC.player != null;
     }
 
     public static void renderVanillaFrameToGui() {
-        if (renderingTheaterFrame || !shouldRenderGameplayFrame()) {
+        if (renderingTheaterFrame || !shouldRenderWorldFrame()) {
             return;
         }
         ensureTheaterFramebuffer();
@@ -201,7 +223,7 @@ public final class TheaterRenderer {
     }
 
     public static void renderTheaterLayer(float partialTick, boolean depthAlways) {
-        if (!TheaterMode.isActive() || MC.currentScreen != null || theaterFramebuffer == null) {
+        if (!TheaterMode.isActive() || theaterFramebuffer == null) {
             return;
         }
 
