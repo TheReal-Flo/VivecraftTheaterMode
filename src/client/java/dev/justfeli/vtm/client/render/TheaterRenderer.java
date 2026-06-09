@@ -128,18 +128,51 @@ public final class TheaterRenderer {
     }
 
     /**
-     * Whether the theater panel should take over the GUI layer this frame: i.e. composite the GUI
-     * (HUD or open screen) onto the theater framebuffer and draw it on the panel, instead of letting
-     * Vivecraft draw its separate floating popup. Requires an in-world context with a captured frame;
-     * in the main menu (no world) Vivecraft keeps drawing its normal menu popup.
+     * Decides whether the theater panel should take over the GUI layer this frame (compositing the GUI
+     * onto the theater framebuffer and drawing it on the panel instead of Vivecraft's floating popup),
+     * and prepares the theater framebuffer when needed.
+     *
+     * <ul>
+     *   <li>In-world: the captured world frame is the backdrop and the HUD/screen composites on top, so
+     *       we just need a captured frame to exist.</li>
+     *   <li>Main menu / worldless screens (e.g. the title screen): there is no world frame, so we give
+     *       the panel a clean backdrop here and let the screen's own background (the title-screen
+     *       panorama, restored in {@code ScreenBackgroundTheaterMixin}) fill it. This routes the main
+     *       menu onto the theater screen too, rather than leaving Vivecraft's menu-room popup.</li>
+     * </ul>
+     *
+     * @return true if the caller should composite the GUI and draw the panel (and cancel the popup)
      */
-    public static boolean shouldCompositeTheaterScreen() {
-        return TheaterMode.isActive() &&
-            hasTheaterFramebuffer() &&
-            DATA_HOLDER.vrPlayer != null &&
-            DATA_HOLDER.vr != null &&
-            MC.world != null &&
-            MC.player != null;
+    public static boolean prepareGuiComposite() {
+        if (!TheaterMode.isActive() || DATA_HOLDER.vrPlayer == null || DATA_HOLDER.vr == null) {
+            return false;
+        }
+        if (MC.world != null && MC.player != null) {
+            return hasTheaterFramebuffer();
+        }
+        if (MC.currentScreen == null) {
+            return false;
+        }
+        // In-world, placeGuiSurface() runs from the renderGuiAndShadow capture hook and sets
+        // GuiHandler.GUI_SCALE = THEATER_SCALE (which render2D uses to size the panel). The menu uses a
+        // different render path (renderMenuRoom) that never hits that hook, so do it here too; otherwise
+        // the panel keeps Vivecraft's default GUI_SCALE (1.0) and the menu renders much smaller than the
+        // in-world panel.
+        placeGuiSurface();
+        prepareMenuFrame();
+        return theaterFramebuffer != null;
+    }
+
+    private static void prepareMenuFrame() {
+        ensureTheaterFramebuffer();
+        if (theaterFramebuffer == null) {
+            return;
+        }
+        theaterFramebuffer.resize(THEATER_WIDTH, THEATER_HEIGHT);
+        RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(
+            theaterFramebuffer.getColorAttachment(), 0xFF000000,
+            theaterFramebuffer.getDepthAttachment(), 1.0
+        );
     }
 
     public static void renderVanillaFrameToGui() {

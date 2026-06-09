@@ -31,11 +31,10 @@ abstract class VREffectsHelperMixin {
 
     @Inject(method = "renderGuiLayer(FZ)V", at = @At("HEAD"), cancellable = true)
     private static void vtm$renderTheaterLayer(float partialTick, boolean depthAlways, CallbackInfo ci) {
-        // Take over the GUI layer for the theater panel whether or not a screen is open. With no
-        // screen this composites the HUD onto the live game frame; with a screen open it composites
-        // the screen's framebuffer on top of the game frame, so pause/inventory/etc. render on the
-        // panel over the game like vanilla, instead of Vivecraft's separate floating popup.
-        if (TheaterRenderer.shouldCompositeTheaterScreen()) {
+        // Take over the GUI layer for the theater panel. In-world this composites the HUD/open screen
+        // onto the captured game frame; in the main menu it composites the screen (title panorama)
+        // onto a clean panel. Either way it replaces Vivecraft's separate floating popup.
+        if (TheaterRenderer.prepareGuiComposite()) {
             Framebuffer guiFramebuffer = org.vivecraft.client_vr.gameplay.screenhandlers.GuiHandler.GUI_FRAMEBUFFER;
             if (guiFramebuffer != null) {
                 ShaderHelper.blit(guiFramebuffer, TheaterRenderer.getTheaterFramebuffer(), true);

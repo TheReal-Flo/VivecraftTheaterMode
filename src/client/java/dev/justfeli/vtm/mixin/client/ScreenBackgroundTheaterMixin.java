@@ -3,7 +3,9 @@ package dev.justfeli.vtm.mixin.client;
 import dev.justfeli.vtm.client.playmode.TheaterMode;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.RotatingCubeMapRenderer;
 import net.minecraft.client.gui.screen.Screen;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -28,9 +30,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *       lives on {@link Screen}, so injecting here also covers those screens.</li>
  * </ul>
  *
- * <p>Both injects run at HEAD with priority 500 so they execute before Vivecraft's HEAD cancel (priority
- * 1000): we draw the dim, then let Vivecraft cancel the rest of the original method (avoiding the blur
- * and any double draw). {@code renderDarkening} isn't cancelled by Vivecraft, so it's safe to delegate to.
+ * <p>The main menu is handled separately: Vivecraft also cancels {@code renderPanoramaBackground}, which
+ * is how the title screen (and other worldless screens) paint their background, leaving them see-through
+ * to the VR menu room. We redraw the rotating panorama so the title screen is opaque again.
+ *
+ * <p>All injects run at HEAD with priority 500 so they execute before Vivecraft's HEAD cancel (priority
+ * 1000): we draw the background, then let Vivecraft cancel the rest of the original method (avoiding the
+ * blur and any double draw). {@code renderDarkening} isn't cancelled by Vivecraft, so it's safe to call.
  */
 @Mixin(value = Screen.class, priority = 500)
 abstract class ScreenBackgroundTheaterMixin {
@@ -39,6 +45,10 @@ abstract class ScreenBackgroundTheaterMixin {
 
     @Shadow
     public int height;
+
+    @Shadow
+    @Final
+    protected static RotatingCubeMapRenderer ROTATING_PANORAMA_RENDERER;
 
     @Shadow
     protected abstract void renderDarkening(DrawContext context);
@@ -57,6 +67,14 @@ abstract class ScreenBackgroundTheaterMixin {
         if (TheaterMode.isActive() && MinecraftClient.getInstance().world != null) {
             // The stronger gradient vanilla's renderInGameBackground draws (0xC0101010 -> 0xD0101010).
             context.fillGradient(0, 0, this.width, this.height, 0xC0101010, 0xD0101010);
+        }
+    }
+
+    @Inject(method = "renderPanoramaBackground", at = @At("HEAD"))
+    private void vtm$restorePanorama(DrawContext context, float delta, CallbackInfo ci) {
+        if (TheaterMode.isActive() && MinecraftClient.getInstance().world == null) {
+            // Same call vanilla's renderPanoramaBackground makes, so the title screen is opaque again.
+            ROTATING_PANORAMA_RENDERER.render(context, this.width, this.height, 1.0F, delta);
         }
     }
 }

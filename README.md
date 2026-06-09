@@ -48,6 +48,10 @@ Both of these might be fixed in the future through updates on QuestCrafts side. 
 
 The selected play mode is saved between launches.
 
+## Known issues
+
+- Inventory sometimes seems to move items onto unintended slots, when using a gamepad. This can be fixed by closing and opening that inventory screen again.
+
 ## Notes
 
 - This mod is a compatibility/add-on mod for Vivecraft, not a standalone VR replacement.
