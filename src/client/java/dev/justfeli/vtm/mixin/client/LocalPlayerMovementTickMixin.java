@@ -40,10 +40,11 @@ abstract class LocalPlayerMovementTickMixin {
         vtm$movementTickBypassActive = false;
         TheaterMode.endVanillaBypass();
 
-        // Theater bypasses Vivecraft's room-scale move handling, so the room origin (and with it the
-        // HMD-driven main VR pass that decides which chunks are set up/visible) never follows the
-        // player. Walking then leaves the world rendering anchored to where you started. Re-center the
-        // room on the player each tick so chunk setup tracks the player instead of the headset.
+        // Theater bypasses Vivecraft's room-scale move, so the room origin never follows the player.
+        // The headset-driven main VR pass (which shares the chunk build/cull state used by the panel
+        // render) then stays anchored to the start point, so the world both loads and renders from
+        // where you started. Re-centre the room on the player each tick so the headset pass tracks the
+        // player; this is invisible because the panel is anchored in room space and stays in front.
         ClientDataHolderVR dataHolder = ClientDataHolderVR.getInstance();
         ClientPlayerEntity player = MinecraftClient.getInstance().player;
         if (dataHolder.vrPlayer != null && player != null) {
