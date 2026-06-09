@@ -11,7 +11,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Keeps Theater mode synced to the real player rotation without replacing vanilla look handling.
+ * Feeds raw mouse look deltas into the Theater camera's mod-owned yaw accumulator, so horizontal
+ * look survives Vivecraft pulling the entity yaw back toward the head/VR facing between frames.
  */
 @Mixin(value = Entity.class, priority = 2000)
 abstract class EntityLookTheaterMixin {
@@ -21,12 +22,11 @@ abstract class EntityLookTheaterMixin {
     }
 
     @Inject(method = "changeLookDirection", at = @At("TAIL"))
-    private void vtm$capturePlayerLook(double cursorDeltaX, double cursorDeltaY, CallbackInfo ci) {
+    private void vtm$accumulateTheaterYaw(double cursorDeltaX, double cursorDeltaY, CallbackInfo ci) {
         if (!vtm$controlsTheaterLook()) {
             return;
         }
 
-        Entity entity = (Entity) (Object) this;
-        TheaterRenderer.captureCleanRotation(entity.getYaw(), entity.getPitch());
+        TheaterRenderer.accumulateViewYaw(cursorDeltaX);
     }
 }

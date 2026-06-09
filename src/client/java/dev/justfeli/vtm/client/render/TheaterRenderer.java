@@ -37,9 +37,9 @@ public final class TheaterRenderer {
     private static Vector3f panelAnchorPosition;
     private static Matrix4f panelAnchorRotation;
 
-    private static float cleanYaw;
-    private static float cleanPitch;
-    private static boolean hasCleanRotation;
+    private static final double LOOK_SENSITIVITY = 0.15D;
+    private static float theaterViewYaw;
+    private static boolean theaterViewYawValid;
     private static float previousPlayerYaw;
     private static float previousPlayerPitch;
     private static float previousPlayerLastYaw;
@@ -57,27 +57,19 @@ public final class TheaterRenderer {
     }
 
     /**
-     * Stores the player's mouse-driven yaw/pitch at a point where it is known to be clean
-     * (right after vanilla mouse look runs), so the theater camera can use it instead of the
-     * entity rotation that Vivecraft's render-view-entity logic transiently overwrites with the
-     * HMD pose.
+     * Accumulates raw mouse look deltas into a mod-owned yaw used purely for the theater camera.
+     *
+     * <p>The theater camera can't reliably read the player entity's yaw: even with the seated keyhole
+     * and the render-view-entity cache neutralised, the entity yaw still gets pulled back toward the
+     * VR/head facing between frames, which makes the rendered view snap back horizontally. Pitch is
+     * not affected, so we only take over yaw. By integrating the same delta vanilla mouse look uses
+     * (cursorDeltaX * 0.15), this owns the horizontal view independently of anything Vivecraft does to
+     * the entity, while leaving the entity itself (movement, aim, networking) untouched.
      */
-    public static void captureCleanRotation(float yaw, float pitch) {
-        cleanYaw = yaw;
-        cleanPitch = pitch;
-        hasCleanRotation = true;
-    }
-
-    public static boolean hasCleanRotation() {
-        return hasCleanRotation;
-    }
-
-    public static float getCleanYaw() {
-        return cleanYaw;
-    }
-
-    public static float getCleanPitch() {
-        return cleanPitch;
+    public static void accumulateViewYaw(double cursorDeltaX) {
+        if (theaterViewYawValid) {
+            theaterViewYaw += (float) (cursorDeltaX * LOOK_SENSITIVITY);
+        }
     }
 
     public static Framebuffer getTheaterFramebuffer() {
@@ -202,24 +194,19 @@ public final class TheaterRenderer {
         EntityAccessor playerAccessor = (EntityAccessor) MC.player;
         previousPlayerEyeHeight = playerAccessor.vtm$getStandingEyeHeightField();
 
-        float renderYaw;
-        float renderPitch;
-        float renderLastYaw;
-        float renderLastPitch;
-        float renderHeadYaw;
-        float renderBodyYaw;
-
-        renderYaw = MC.player.getYaw();
-        renderPitch = MC.player.getPitch();
-        renderLastYaw = MC.player.lastYaw;
-        renderLastPitch = MC.player.lastPitch;
-        if (MC.player instanceof LivingEntity livingEntity) {
-            renderHeadYaw = livingEntity.headYaw;
-            renderBodyYaw = livingEntity.bodyYaw;
-        } else {
-            renderHeadYaw = renderYaw;
-            renderBodyYaw = renderYaw;
+        if (!theaterViewYawValid) {
+            theaterViewYaw = MC.player.getYaw();
+            theaterViewYawValid = true;
         }
+
+        // Yaw is driven by the mod-owned accumulator (mouse deltas), pitch stays as the live entity
+        // pitch, which already tracks the mouse correctly.
+        float renderYaw = theaterViewYaw;
+        float renderPitch = MC.player.getPitch();
+        float renderLastYaw = theaterViewYaw;
+        float renderLastPitch = MC.player.lastPitch;
+        float renderHeadYaw = theaterViewYaw;
+        float renderBodyYaw = theaterViewYaw;
 
         MC.player.setYaw(renderYaw);
         MC.player.setPitch(renderPitch);
@@ -278,6 +265,8 @@ public final class TheaterRenderer {
     private static void resetPanelAnchor() {
         panelAnchorPosition = null;
         panelAnchorRotation = null;
+        // Re-seed the view yaw from the real player yaw the next time Theater mode starts.
+        theaterViewYawValid = false;
     }
 
     private static void restorePreviousRenderPass(WorldRenderPass previousWorldPass, RenderPass previousPass) {
