@@ -1,6 +1,7 @@
 package dev.justfeli.vtm.mixin.client;
 
 import dev.justfeli.vtm.client.playmode.TheaterMode;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.InGameHud;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -23,6 +24,10 @@ import org.vivecraft.client_xr.render_pass.RenderPassType;
  * which makes {@code isGuiOnly()} read false so the cancel is skipped and the vanilla crosshair draws;
  * RETURN restores the real pass type. The swap is scoped to this single method, so the other
  * GUI-only overlay cancels (vignette, portal, spyglass, ...) are unaffected.
+ *
+ * <p>We only do this during screenless gameplay. With a screen open (e.g. an inventory) the crosshair
+ * should stay hidden - both Vivecraft and mods like Controlify hide it there - so we leave the cancel
+ * in place rather than forcing the crosshair on top of the GUI.
  */
 @Mixin(value = InGameHud.class, priority = 500)
 abstract class InGameHudCrosshairTheaterMixin {
@@ -33,7 +38,9 @@ abstract class InGameHudCrosshairTheaterMixin {
 
     @Inject(method = "renderCrosshair", at = @At("HEAD"))
     private void vtm$allowTheaterCrosshair(CallbackInfo ci) {
-        if (TheaterMode.isActive() && RenderPassType.isGuiOnly()) {
+        if (TheaterMode.isActive() && RenderPassType.isGuiOnly() &&
+            MinecraftClient.getInstance().currentScreen == null)
+        {
             vtm$savedRenderPass = RenderPassManager.RENDER_PASS_TYPE;
             RenderPassManager.RENDER_PASS_TYPE = RenderPassType.VANILLA;
             vtm$renderPassSwapped = true;
