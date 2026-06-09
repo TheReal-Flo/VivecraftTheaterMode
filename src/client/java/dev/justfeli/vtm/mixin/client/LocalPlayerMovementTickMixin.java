@@ -1,6 +1,7 @@
 package dev.justfeli.vtm.mixin.client;
 
 import dev.justfeli.vtm.client.playmode.TheaterMode;
+import dev.justfeli.vtm.client.render.TheaterRenderer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.LivingEntity;
 import org.spongepowered.asm.mixin.Mixin;
@@ -19,6 +20,10 @@ abstract class LocalPlayerMovementTickMixin {
         if (!TheaterMode.isActive() || (Object) this != MinecraftClient.getInstance().player) {
             return;
         }
+
+        // Drive the real player yaw from the Theater view accumulator before movement is computed,
+        // so the body turns and walking is relative to where the camera looks.
+        TheaterRenderer.applyViewYawToPlayer();
 
         vtm$movementTickBypassActive = true;
         TheaterMode.beginVanillaBypass();

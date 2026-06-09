@@ -72,6 +72,29 @@ public final class TheaterRenderer {
         }
     }
 
+    /**
+     * Makes the accumulated view yaw authoritative on the actual player, so the body turns and
+     * movement is computed relative to where the Theater camera is looking. Called at the start of
+     * the movement tick (before {@code travel}/{@code freemoveDirection} read the yaw). Vanilla mouse
+     * look adds the same delta to both the entity yaw and the accumulator, so they stay in lockstep
+     * and there is no double turning.
+     */
+    public static void applyViewYawToPlayer() {
+        if (MC.player == null) {
+            return;
+        }
+        if (!theaterViewYawValid) {
+            theaterViewYaw = MC.player.getYaw();
+            theaterViewYawValid = true;
+        }
+        MC.player.setYaw(theaterViewYaw);
+        MC.player.lastYaw = theaterViewYaw;
+        if (MC.player instanceof LivingEntity livingEntity) {
+            livingEntity.headYaw = theaterViewYaw;
+            livingEntity.bodyYaw = theaterViewYaw;
+        }
+    }
+
     public static Framebuffer getTheaterFramebuffer() {
         return theaterFramebuffer;
     }
