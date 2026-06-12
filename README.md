@@ -48,6 +48,41 @@ Both of these might be fixed in the future through updates on QuestCrafts side. 
 
 The selected play mode is saved between launches.
 
+## Custom Theater Environments
+
+Theater mode now loads its 3D scene from a resource pack by default. Put the environment config at:
+
+- `assets/vivecraft_theater_mode/theater/environment.json`
+
+Then place your OBJ files and textures alongside it inside the same namespace. Resource packs can override that file, so users can install custom theater environments by enabling a pack in Minecraft's Resource Packs menu.
+
+The JSON can reference multiple OBJ files, their textures, object transforms, the player spawn position, and the screen placement.
+Use relative paths like `holograms/example.obj`, or explicit resource locations like `otherpack:theater/models/example.obj`.
+
+Relative paths are resolved from the config file's folder, so this works:
+
+Minimal shape:
+
+```json
+{
+  "playerPosition": [0.0, 1.6, 0.0],
+  "screen": {
+    "position": [0.0, 1.4, -2.5],
+    "rotation": [0.0, 0.0, 0.0],
+    "size": [1.8, 1.0]
+  },
+  "objects": [
+    {
+      "model": "holograms/example.obj",
+      "texture": "textures/example.png",
+      "position": [0.0, 0.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [1.0, 1.0, 1.0]
+    }
+  ]
+}
+```
+
 ## Known issues
 
 - Inventory sometimes seems to move items onto unintended slots, when using a gamepad. This can be fixed by closing and opening that inventory screen again.
@@ -59,5 +94,5 @@ The selected play mode is saved between launches.
 
 ## Planned features
 - [ ] Bringing back the OG theater environment
-- [ ] Functionality to add custom theater environments
+- [x] Functionality to add custom theater environments
 - [ ] Multiplayer environments with splitscreen

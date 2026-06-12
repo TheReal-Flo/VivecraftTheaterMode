@@ -26,7 +26,7 @@ public final class TheaterModeState {
     }
 
     public static TheaterPlayMode getMode() {
-        return currentMode;
+        return currentMode != null ? currentMode : TheaterPlayMode.STANDING;
     }
 
     public static void setMode(TheaterPlayMode mode) {
@@ -49,7 +49,11 @@ public final class TheaterModeState {
 
     public static void loadOrInfer(VRSettings vrSettings) {
         if (!loaded) {
-            currentMode = readModeFromDisk().orElseGet(() -> inferMode(vrSettings));
+            currentMode = null;
+            readFromDisk().ifPresent(theaterPlayMode -> currentMode = theaterPlayMode);
+            if (currentMode == null) {
+                currentMode = inferMode(vrSettings);
+            }
             loaded = true;
         }
 
@@ -70,7 +74,7 @@ public final class TheaterModeState {
 
     public static void save() {
         Properties properties = new Properties();
-        properties.setProperty(MODE_KEY, currentMode.name());
+        properties.setProperty(MODE_KEY, getMode().name());
 
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
@@ -87,14 +91,14 @@ public final class TheaterModeState {
     }
 
     public static String getModeDisplayString() {
-        return I18n.translate(currentMode.translationKey());
+        return I18n.translate(getMode().translationKey());
     }
 
     private static TheaterPlayMode inferMode(VRSettings vrSettings) {
         return vrSettings.seated ? TheaterPlayMode.SEATED : TheaterPlayMode.STANDING;
     }
 
-    private static java.util.Optional<TheaterPlayMode> readModeFromDisk() {
+    private static java.util.Optional<TheaterPlayMode> readFromDisk() {
         if (!Files.exists(CONFIG_PATH)) {
             return java.util.Optional.empty();
         }
@@ -102,7 +106,8 @@ public final class TheaterModeState {
         Properties properties = new Properties();
         try (InputStream inputStream = Files.newInputStream(CONFIG_PATH)) {
             properties.load(inputStream);
-            return java.util.Optional.of(TheaterPlayMode.fromString(properties.getProperty(MODE_KEY)));
+            TheaterPlayMode mode = TheaterPlayMode.fromString(properties.getProperty(MODE_KEY));
+            return java.util.Optional.of(mode);
         } catch (IOException exception) {
             return java.util.Optional.empty();
         }

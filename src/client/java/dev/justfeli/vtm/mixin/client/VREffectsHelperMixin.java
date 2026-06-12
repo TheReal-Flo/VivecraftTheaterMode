@@ -1,6 +1,7 @@
 package dev.justfeli.vtm.mixin.client;
 
 import com.mojang.blaze3d.textures.GpuTexture;
+import dev.justfeli.vtm.client.environment.TheaterEnvironmentManager;
 import dev.justfeli.vtm.client.playmode.TheaterMode;
 import dev.justfeli.vtm.client.render.TheaterRenderer;
 import net.minecraft.client.gl.Framebuffer;
@@ -26,6 +27,28 @@ abstract class VREffectsHelperMixin {
         if (TheaterMode.isActive()) {
             TheaterRenderer.placeGuiSurface();
             TheaterRenderer.renderEnvironment(partialTick);
+        }
+    }
+
+    /**
+     * The menu room (title screen, and any state Vivecraft treats as "in menu") renders through
+     * renderMenuRoom, which calls renderMenuEnvironment directly and never goes through
+     * renderGuiAndShadow, so the capture hook above never runs there. Swap the menu environment for
+     * the theater environment on this path too.
+     */
+    @Redirect(
+        method = "renderMenuRoom",
+        at = @At(
+            value = "INVOKE",
+            target = "Lorg/vivecraft/client_vr/render/helpers/VREffectsHelper;renderMenuEnvironment()V"
+        )
+    )
+    private static void vtm$theaterMenuEnvironment(float partialTick) {
+        if (TheaterMode.isActive() && TheaterEnvironmentManager.hasLoadedScene()) {
+            TheaterRenderer.placeGuiSurface();
+            TheaterRenderer.renderEnvironment(partialTick);
+        } else {
+            VREffectsHelper.renderMenuEnvironment();
         }
     }
 

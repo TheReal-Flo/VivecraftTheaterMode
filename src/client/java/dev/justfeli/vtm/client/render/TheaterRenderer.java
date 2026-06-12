@@ -14,11 +14,11 @@ import org.vivecraft.api.client.data.RenderPass;
 import org.vivecraft.client_vr.ClientDataHolderVR;
 import org.vivecraft.client_vr.extensions.GameRendererExtension;
 import org.vivecraft.client_vr.gameplay.screenhandlers.GuiHandler;
-import org.vivecraft.client_vr.render.helpers.RenderHelper;
 import org.vivecraft.client_vr.render.helpers.VREffectsHelper;
 import org.vivecraft.client_xr.render_pass.RenderPassManager;
 import org.vivecraft.client_xr.render_pass.WorldRenderPass;
 
+import dev.justfeli.vtm.client.environment.TheaterEnvironmentManager;
 import dev.justfeli.vtm.client.playmode.TheaterMode;
 import dev.justfeli.vtm.mixin.client.EntityAccessor;
 import dev.justfeli.vtm.mixin.client.MinecraftClientAccessor;
@@ -37,6 +37,7 @@ public final class TheaterRenderer {
     private static boolean renderingTheaterPanel;
     private static Vector3f panelAnchorPosition;
     private static Matrix4f panelAnchorRotation;
+    private static boolean panelAnchorFromScene;
 
     private static final double LOOK_SENSITIVITY = 0.15D;
     private static float theaterViewYaw;
@@ -228,19 +229,7 @@ public final class TheaterRenderer {
         if (DATA_HOLDER.vrPlayer == null || DATA_HOLDER.vr == null) {
             return;
         }
-
-        RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(
-            MC.getFramebuffer().getColorAttachment(), 0xFF000000,
-            MC.getFramebuffer().getDepthAttachment(), 1.0
-        );
-        RenderSystem.getModelViewStack().pushMatrix().identity();
-        try {
-            RenderHelper.applyVRModelView(DATA_HOLDER.currentPass, RenderSystem.getModelViewStack());
-            ((GameRendererExtension) MC.gameRenderer).vivecraft$resetProjectionMatrix(partialTick);
-            VREffectsHelper.renderMenuEnvironment();
-        } finally {
-            RenderSystem.getModelViewStack().popMatrix();
-        }
+        TheaterEnvironmentManager.renderEnvironment(partialTick);
     }
 
     public static void placeGuiSurface() {
@@ -249,6 +238,21 @@ public final class TheaterRenderer {
             return;
         }
 
+        TheaterEnvironmentManager.ScenePlacement placement = TheaterEnvironmentManager.getGuiPlacement();
+        if (placement != null) {
+            panelAnchorPosition = new Vector3f(placement.position());
+            panelAnchorRotation = new Matrix4f(placement.rotation());
+            panelAnchorFromScene = true;
+            GuiHandler.GUI_POS_ROOM = new Vector3f(panelAnchorPosition);
+            GuiHandler.GUI_ROTATION_ROOM = new Matrix4f(panelAnchorRotation);
+            GuiHandler.GUI_SCALE = placement.scale();
+            return;
+        }
+
+        if (panelAnchorFromScene || panelAnchorPosition == null || panelAnchorRotation == null) {
+            resetPanelAnchor();
+            panelAnchorFromScene = false;
+        }
         ensurePanelAnchor();
         GuiHandler.GUI_POS_ROOM = new Vector3f(panelAnchorPosition);
         GuiHandler.GUI_ROTATION_ROOM = new Matrix4f(panelAnchorRotation);
@@ -356,6 +360,7 @@ public final class TheaterRenderer {
     private static void resetPanelAnchor() {
         panelAnchorPosition = null;
         panelAnchorRotation = null;
+        panelAnchorFromScene = false;
         // Re-seed the view yaw from the real player yaw the next time Theater mode starts.
         theaterViewYawValid = false;
     }

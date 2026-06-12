@@ -1,0 +1,90 @@
+{
+  "playerPosition": [
+    6.274,
+    1.6,
+    7.123
+  ],
+  "playerRotation": [
+    0,
+    0,
+    0
+  ],
+  "screen": {
+    "position": [
+      6.175,
+      2.219,
+      5.116
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "size": [
+      3.2,
+      1.8
+    ]
+  },
+  "objects": [
+    {
+      "model": "hologram_vr_livingroom.obj",
+      "texture": "hologram_vr_living_room.png",
+      "translucent": false,
+      "position": [
+        6.2,
+        0,
+        -3.55
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "model": "hologram_livingroom_table.obj",
+      "texture": "hologram_wall_rgba.png",
+      "translucent": false,
+      "position": [
+        6.181,
+        0,
+        9.026
+      ],
+      "rotation": [
+        0,
+        180,
+        0
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "model": "hologram_livingroom_frame.obj",
+      "texture": "hologram_wall_rgba.png",
+      "translucent": false,
+      "position": [
+        6.175,
+        2.219,
+        5.116
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.0643,
+        0.0643,
+        0.0643
+      ]
+    }
+  ]
+}

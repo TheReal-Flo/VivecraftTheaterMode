@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Theater Environment Editor</title>
+<style>
+  :root {
+    --bg: #1b1b1f; --panel: #242429; --panel2: #2b2b31; --border: #36363e;
+    --text: #d6d6dc; --text-dim: #8a8a93; --accent: #4f8cff; --accent2: #6aa1ff;
+    --danger: #e05555;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Segoe UI", system-ui, sans-serif; }
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-size: 13px; }
+  #app { display: grid; grid-template-rows: 42px 1fr; grid-template-columns: 240px 1fr 300px; height: 100%; }
+  #toolbar { grid-column: 1 / 4; display: flex; align-items: center; gap: 8px; padding: 0 12px;
+             background: var(--panel); border-bottom: 1px solid var(--border); }
+  #toolbar .title { font-weight: 600; margin-right: 12px; color: var(--text); letter-spacing: .3px; }
+  #toolbar .spacer { flex: 1; }
+  button, label.filebtn {
+    background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 12px; cursor: pointer; font-size: 12.5px; transition: background .12s, border-color .12s;
+    user-select: none; display: inline-flex; align-items: center; gap: 6px;
+  }
+  button:hover, label.filebtn:hover { background: #34343c; border-color: #4a4a55; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { background: var(--accent2); }
+  button.mode { padding: 5px 10px; }
+  button.mode.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
+  #hierarchy { background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+  #inspector { background: var(--panel); border-left: 1px solid var(--border); overflow-y: auto; }
+  .panel-head { padding: 9px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+                color: var(--text-dim); border-bottom: 1px solid var(--border); display:flex; align-items:center; }
+  .panel-head .spacer { flex: 1; }
+  .panel-head button { padding: 1px 8px; font-size: 14px; line-height: 18px; }
+  #tree { flex: 1; overflow-y: auto; padding: 6px 0; }
+  .tree-item { padding: 6px 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-left: 2px solid transparent; }
+  .tree-item:hover { background: var(--panel2); }
+  .tree-item.selected { background: #31405e; border-left-color: var(--accent); }
+  .tree-item .icon { width: 14px; text-align: center; opacity: .8; }
+  .tree-item .sub { color: var(--text-dim); font-size: 11px; margin-left: auto; }
+  #viewport { position: relative; min-width: 0; min-height: 0; }
+  #viewport canvas { display: block; }
+  #viewport-hint { position: absolute; left: 10px; bottom: 8px; color: #ffffff55; font-size: 11px; pointer-events: none; }
+  .section { border-bottom: 1px solid var(--border); padding: 10px 12px 14px; }
+  .section h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 10px; }
+  .row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .row label.fieldname { width: 72px; flex-shrink: 0; color: var(--text-dim); font-size: 12px; }
+  .vec input, .row input[type=number], .row input[type=text], .row select {
+    width: 100%; min-width: 0; background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 4px; padding: 4px 6px; font-size: 12px; font-family: Consolas, monospace;
+  }
+  .vec { display: flex; gap: 4px; flex: 1; }
+  .vec .axis { display: flex; align-items: center; flex: 1; min-width: 0; }
+  .vec .axis::before { content: attr(data-axis); font-size: 10px; padding: 0 4px; color: #fff;
+                       border-radius: 3px 0 0 3px; align-self: stretch; display: flex; align-items: center; }
+  .vec .axis[data-axis=X]::before { background: #a33b3b; }
+  .vec .axis[data-axis=Y]::before { background: #3b8a3b; }
+  .vec .axis[data-axis=Z]::before { background: #3b5fa3; }
+  .vec .axis input { border-radius: 0 3px 3px 0; border-left: none; }
+  input:focus, select:focus { outline: 1px solid var(--accent); }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .muted { color: var(--text-dim); font-size: 11.5px; line-height: 1.5; }
+  #assets { max-height: 180px; overflow-y: auto; border-top: 1px solid var(--border); }
+  .asset { padding: 4px 14px; font-size: 11.5px; color: var(--text-dim); display: flex; gap: 6px; }
+  .asset .ok { color: #6fbf6f; }
+  ::-webkit-scrollbar { width: 9px; }
+  ::-webkit-scrollbar-thumb { background: #3c3c45; border-radius: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  #drop-overlay { position: fixed; inset: 0; background: #4f8cff22; border: 3px dashed var(--accent);
+                  display: none; align-items: center; justify-content: center; font-size: 20px; color: var(--accent2);
+                  pointer-events: none; z-index: 10; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="toolbar">
+    <span class="title">Theater Environment Editor</span>
+    <button class="mode active" id="mode-translate" title="Move (W)">Move</button>
+    <button class="mode" id="mode-rotate" title="Rotate (E)">Rotate</button>
+    <button class="mode" id="mode-scale" title="Scale (R)">Scale</button>
+    <span class="spacer"></span>
+    <label class="filebtn">Load assets / JSON<input type="file" id="file-input" multiple accept=".obj,.png,.jpg,.jpeg,.json" hidden></label>
+    <button id="btn-export" class="primary">Export environment.json</button>
+  </div>
+
+  <div id="hierarchy">
+    <div class="panel-head">Hierarchy<span class="spacer"></span><button id="btn-add" title="Add object">+</button></div>
+    <div id="tree"></div>
+    <div class="panel-head">Assets</div>
+    <div id="assets"><div class="asset muted" style="padding:8px 14px">Drop .obj / .png / environment.json files anywhere</div></div>
+  </div>
+
+  <div id="viewport"><div id="viewport-hint">LMB orbit &nbsp;·&nbsp; RMB pan &nbsp;·&nbsp; wheel zoom &nbsp;·&nbsp; W/E/R gizmo &nbsp;·&nbsp; F focus &nbsp;·&nbsp; Del delete</div></div>
+
+  <div id="inspector"><div class="section"><div class="muted">Select an item in the hierarchy.</div></div></div>
+</div>
+<div id="drop-overlay">Drop files to load</div>
+
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
+
+/* ---------------- state ---------------- */
+const env = {
+  playerPosition: [0, 1.6, 0],
+  playerRotation: [0, 0, 0],
+  screen: { position: [0, 2.0, -5.5], rotation: [0, 0, 0], size: [3.2, 1.8] },
+  objects: []
+};
+const assets = new Map();   // filename -> { kind:'obj', text } | { kind:'img', texture, url }
+let selection = { type: null, index: -1 };   // type: 'player' | 'screen' | 'object'
+
+/* ---------------- three setup ---------------- */
+const viewport = document.getElementById('viewport');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+viewport.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x232328);
+const camera = new THREE.PerspectiveCamera(60, 1, 0.05, 500);
+camera.position.set(4, 3.2, 5);
+
+const orbit = new OrbitControls(camera, renderer.domElement);
+orbit.target.set(0, 1.2, -1.5);
+orbit.update();
+
+const grid = new THREE.GridHelper(20, 20, 0x4a4a55, 0x33333b);
+scene.add(grid);
+scene.add(new THREE.AxesHelper(1.2));
+
+const gizmo = new TransformControls(camera, renderer.domElement);
+gizmo.addEventListener('dragging-changed', e => orbit.enabled = !e.value);
+gizmo.addEventListener('objectChange', onGizmoChange);
+scene.add(gizmo);
+
+/* player avatar: capsule + eye + facing arrow */
+const playerGroup = new THREE.Group();
+{
+  const mat = new THREE.MeshBasicMaterial({ color: 0x4f8cff, transparent: true, opacity: 0.45 });
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 1.2, 4, 12), mat);
+  body.position.y = -0.75;            // group origin = eye position
+  playerGroup.add(body);
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  playerGroup.add(eye);
+  const arrow = new THREE.ArrowHelper(new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 0, 0), 0.7, 0x4f8cff, 0.18, 0.1);
+  playerGroup.add(arrow);
+}
+scene.add(playerGroup);
+
+/* screen quad with placeholder canvas texture */
+function makeScreenTexture() {
+  const c = document.createElement('canvas'); c.width = 640; c.height = 360;
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0, 0, 0, 360);
+  grad.addColorStop(0, '#2c3e60'); grad.addColorStop(1, '#16202f');
+  g.fillStyle = grad; g.fillRect(0, 0, 640, 360);
+  g.strokeStyle = '#4f8cff'; g.lineWidth = 6; g.strokeRect(3, 3, 634, 354);
+  g.fillStyle = '#cfe0ff'; g.font = '600 44px Segoe UI'; g.textAlign = 'center';
+  g.fillText('SCREEN', 320, 195);
+  return new THREE.CanvasTexture(c);
+}
+const screenMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(1, 1),
+  new THREE.MeshBasicMaterial({ map: makeScreenTexture(), side: THREE.DoubleSide })
+);
+scene.add(screenMesh);
+
+const objectsGroup = new THREE.Group();
+scene.add(objectsGroup);
+
+/* ---------------- OBJ parsing (mirrors the mod's TheaterObjModel) ---------------- */
+function parseObj(text) {
+  const pos = [], uv = [], outP = [], outU = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    const t = line.split(/\s+/);
+    if (t[0] === 'v') pos.push([+t[1], +t[2], +t[3]]);
+    else if (t[0] === 'vt') uv.push([+t[1], 1 - (+t[2] || 0)]);   // same V flip as the mod
+    else if (t[0] === 'f') {
+      const idx = [];
+      for (let i = 1; i < t.length; i++) {
+        const p = t[i].split('/');
+        let vi = +p[0]; vi = vi > 0 ? vi - 1 : pos.length + vi;
+        let ti = p.length > 1 && p[1] !== '' ? +p[1] : 0;
+        ti = ti > 0 ? ti - 1 : (ti < 0 ? uv.length + ti : -1);
+        idx.push([vi, ti]);
+      }
+      for (let i = 2; i < idx.length; i++) {
+        for (const [vi, ti] of [idx[0], idx[i - 1], idx[i]]) {
+          const p = pos[vi] || [0, 0, 0];
+          outP.push(p[0], p[1], p[2]);
+          const u = ti >= 0 && uv[ti] ? uv[ti] : [0, 0];
+          outU.push(u[0], 1 - u[1]);   // three.js samples bottom-left, undo for display
+        }
+      }
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(outP, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(outU, 2));
+  geo.computeVertexNormals();
+  return geo;
+}
+
+/* ---------------- scene sync ---------------- */
+const geoCache = new Map();
+function getGeometry(name) {
+  const a = assets.get(name);
+  if (!a || a.kind !== 'obj') return null;
+  if (!geoCache.has(name)) geoCache.set(name, parseObj(a.text));
+  return geoCache.get(name);
+}
+function getTexture(name) {
+  const a = assets.get(name);
+  return a && a.kind === 'img' ? a.texture : null;
+}
+
+function syncScene() {
+  playerGroup.position.fromArray(env.playerPosition);
+  playerGroup.rotation.set(
+    THREE.MathUtils.degToRad(env.playerRotation[0]),
+    THREE.MathUtils.degToRad(env.playerRotation[1]),
+    THREE.MathUtils.degToRad(env.playerRotation[2]), 'XYZ');
+
+  screenMesh.position.fromArray(env.screen.position);
+  screenMesh.rotation.set(
+    THREE.MathUtils.degToRad(env.screen.rotation[0]),
+    THREE.MathUtils.degToRad(env.screen.rotation[1]),
+    THREE.MathUtils.degToRad(env.screen.rotation[2]), 'XYZ');
+  screenMesh.scale.set(env.screen.size[0], env.screen.size[1], 1);
+
+  while (objectsGroup.children.length > env.objects.length)
+    objectsGroup.remove(objectsGroup.children[objectsGroup.children.length - 1]);
+  for (let i = 0; i < env.objects.length; i++) {
+    const o = env.objects[i];
+    let mesh = objectsGroup.children[i];
+    const geo = getGeometry(o.model) || new THREE.BoxGeometry(50, 50, 50);
+    const tex = getTexture(o.texture);
+    if (!mesh) {
+      mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial());
+      objectsGroup.add(mesh);
+    }
+    if (mesh.geometry !== geo) mesh.geometry = geo;
+    const m = mesh.material;
+    m.map = tex; m.side = THREE.DoubleSide;
+    m.transparent = !!o.translucent; m.alphaTest = o.translucent ? 0 : 0.1;
+    m.color.set(tex ? 0xffffff : (getGeometry(o.model) ? 0x9b6dff : 0xff8030));
+    m.wireframe = !getGeometry(o.model);
+    m.needsUpdate = true;
+    mesh.position.fromArray(o.position);
+    mesh.rotation.set(
+      THREE.MathUtils.degToRad(o.rotation[0]),
+      THREE.MathUtils.degToRad(o.rotation[1]),
+      THREE.MathUtils.degToRad(o.rotation[2]), 'XYZ');
+    mesh.scale.fromArray(o.scale);
+    mesh.userData.index = i;
+  }
+  attachGizmo();
+}
+
+function selectedTarget() {
+  if (selection.type === 'player') return playerGroup;
+  if (selection.type === 'screen') return screenMesh;
+  if (selection.type === 'object') return objectsGroup.children[selection.index] || null;
+  return null;
+}
+function attachGizmo() {
+  const t = selectedTarget();
+  if (t) { gizmo.attach(t); } else { gizmo.detach(); }
+  gizmo.showX = gizmo.showY = gizmo.showZ = true;
+}
+
+function onGizmoChange() {
+  const t = selectedTarget();
+  if (!t) return;
+  const p = [t.position.x, t.position.y, t.position.z].map(round3);
+  const r = [t.rotation.x, t.rotation.y, t.rotation.z].map(v => round3(THREE.MathUtils.radToDeg(v)));
+  if (selection.type === 'player') { env.playerPosition = p; env.playerRotation = r; }
+  else if (selection.type === 'screen') {
+    env.screen.position = p; env.screen.rotation = r;
+    if (gizmo.getMode() === 'scale') env.screen.size = [round3(t.scale.x), round3(t.scale.y)];
+  } else if (selection.type === 'object') {
+    const o = env.objects[selection.index];
+    o.position = p; o.rotation = r;
+    if (gizmo.getMode() === 'scale') o.scale = [t.scale.x, t.scale.y, t.scale.z].map(round5);
+  }
+  renderInspector();
+}
+const round3 = v => Math.round(v * 1000) / 1000;
+const round5 = v => Math.round(v * 100000) / 100000;
+
+/* ---------------- hierarchy ---------------- */
+const tree = document.getElementById('tree');
+function renderTree() {
+  tree.innerHTML = '';
+  tree.appendChild(treeItem('player', -1, '🧍', 'Player', ''));
+  tree.appendChild(treeItem('screen', -1, '🖥', 'Screen', env.screen.size[0] + '×' + env.screen.size[1] + ' m'));
+  env.objects.forEach((o, i) => {
+    tree.appendChild(treeItem('object', i, '◆', o.model || '(no model)', assets.has(o.model) ? '' : 'missing'));
+  });
+}
+function treeItem(type, index, icon, label, sub) {
+  const d = document.createElement('div');
+  d.className = 'tree-item' + (selection.type === type && selection.index === index ? ' selected' : '');
+  d.innerHTML = `<span class="icon">${icon}</span><span>${label}</span><span class="sub">${sub}</span>`;
+  d.onclick = () => { selection = { type, index }; refresh(); };
+  return d;
+}
+
+/* ---------------- inspector ---------------- */
+const inspector = document.getElementById('inspector');
+function vecField(label, values, onChange, axes = ['X', 'Y', 'Z']) {
+  const row = document.createElement('div'); row.className = 'row';
+  row.innerHTML = `<label class="fieldname">${label}</label>`;
+  const vec = document.createElement('div'); vec.className = 'vec';
+  values.forEach((v, i) => {
+    const ax = document.createElement('div'); ax.className = 'axis'; ax.dataset.axis = axes[i];
+    const inp = document.createElement('input'); inp.type = 'number'; inp.step = 'any'; inp.value = v;
+    inp.onchange = () => { values[i] = parseFloat(inp.value) || 0; onChange(); };
+    ax.appendChild(inp); vec.appendChild(ax);
+  });
+  row.appendChild(vec);
+  return row;
+}
+function section(title) {
+  const s = document.createElement('div'); s.className = 'section';
+  if (title) { const h = document.createElement('h3'); h.textContent = title; s.appendChild(h); }
+  return s;
+}
+function renderInspector() {
+  inspector.innerHTML = '';
+  const upd = () => { syncScene(); renderTree(); };
+  if (selection.type === 'player') {
+    const s = section('Player');
+    s.appendChild(vecField('Position', env.playerPosition, upd));
+    s.appendChild(vecField('Rotation°', env.playerRotation, upd));
+    const note = document.createElement('div'); note.className = 'muted';
+    note.style.marginTop = '8px';
+    note.textContent = 'Position marks the eye point (y = eye height, 1.6 = standing). The mod places the viewer here, facing along the rotation.';
+    s.appendChild(note);
+    inspector.appendChild(s);
+  } else if (selection.type === 'screen') {
+    const s = section('Screen');
+    s.appendChild(vecField('Position', env.screen.position, upd));
+    s.appendChild(vecField('Rotation°', env.screen.rotation, upd));
+    s.appendChild(vecField('Size (m)', env.screen.size, upd, ['X', 'Y']));
+    inspector.appendChild(s);
+  } else if (selection.type === 'object') {
+    const o = env.objects[selection.index];
+    if (!o) return;
+    const s = section('Object');
+    s.appendChild(assetSelect('Model', 'obj', o.model, v => { o.model = v; upd(); }));
+    s.appendChild(assetSelect('Texture', 'img', o.texture, v => { o.texture = v; upd(); }));
+    const chk = document.createElement('div'); chk.className = 'checkbox-row';
+    chk.innerHTML = `<label class="fieldname">Translucent</label>`;
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!o.translucent;
+    cb.onchange = () => { o.translucent = cb.checked; upd(); };
+    chk.appendChild(cb); s.appendChild(chk);
+    inspector.appendChild(s);
+    const t = section('Transform');
+    t.appendChild(vecField('Position', o.position, upd));
+    t.appendChild(vecField('Rotation°', o.rotation, upd));
+    t.appendChild(vecField('Scale', o.scale, upd));
+    inspector.appendChild(t);
+    const a = section();
+    const dup = document.createElement('button'); dup.textContent = 'Duplicate';
+    dup.onclick = () => { env.objects.splice(selection.index + 1, 0, JSON.parse(JSON.stringify(o))); selection.index++; refresh(); };
+    const del = document.createElement('button'); del.textContent = 'Delete'; del.className = 'danger'; del.style.marginLeft = '8px';
+    del.onclick = deleteSelected;
+    a.appendChild(dup); a.appendChild(del);
+    inspector.appendChild(a);
+  } else {
+    const s = section();
+    s.innerHTML = '<div class="muted">Select an item in the hierarchy.<br><br>Drop the mod’s <b>environment.json</b>, <b>.obj</b> models and <b>.png</b> textures anywhere in this window to load them.</div>';
+    inspector.appendChild(s);
+  }
+}
+function assetSelect(label, kind, current, onChange) {
+  const row = document.createElement('div'); row.className = 'row';
+  row.innerHTML = `<label class="fieldname">${label}</label>`;
+  const sel = document.createElement('select');
+  const opts = [...assets.keys()].filter(k => assets.get(k).kind === kind);
+  if (current && !opts.includes(current)) opts.unshift(current);
+  sel.innerHTML = '<option value="">(none)</option>' +
+    opts.map(k => `<option ${k === current ? 'selected' : ''}>${k}</option>`).join('');
+  sel.onchange = () => onChange(sel.value);
+  row.appendChild(sel);
+  return row;
+}
+
+/* ---------------- assets panel ---------------- */
+const assetsDiv = document.getElementById('assets');
+function renderAssets() {
+  if (!assets.size) return;
+  assetsDiv.innerHTML = '';
+  for (const [name, a] of assets) {
+    const d = document.createElement('div'); d.className = 'asset';
+    d.innerHTML = `<span class="ok">●</span> ${name} <span style="margin-left:auto">${a.kind}</span>`;
+    assetsDiv.appendChild(d);
+  }
+}
+
+/* ---------------- file loading ---------------- */
+async function loadFiles(files) {
+  for (const f of files) {
+    const lower = f.name.toLowerCase();
+    if (lower.endsWith('.json')) {
+      try {
+        const data = JSON.parse(await f.text());
+        if (Array.isArray(data.playerPosition)) env.playerPosition = data.playerPosition;
+        if (Array.isArray(data.playerRotation)) env.playerRotation = data.playerRotation;
+        if (data.screen) {
+          env.screen.position = data.screen.position || env.screen.position;
+          env.screen.rotation = data.screen.rotation || env.screen.rotation;
+          env.screen.size = data.screen.size || env.screen.size;
+        }
+        if (Array.isArray(data.objects)) env.objects = data.objects.map(o => ({
+          model: o.model || '', texture: o.texture || '', translucent: !!o.translucent,
+          position: o.position || [0, 0, 0], rotation: o.rotation || [0, 0, 0], scale: o.scale || [1, 1, 1]
+        }));
+        selection = { type: null, index: -1 };
+      } catch (e) { alert('Could not parse ' + f.name + ': ' + e.message); }
+    } else if (lower.endsWith('.obj')) {
+      assets.set(f.name, { kind: 'obj', text: await f.text() });
+      geoCache.delete(f.name);
+    } else if (/\.(png|jpe?g)$/.test(lower)) {
+      const url = URL.createObjectURL(f);
+      const texture = await new THREE.TextureLoader().loadAsync(url);
+      texture.magFilter = THREE.NearestFilter;   // minecraft look
+      texture.colorSpace = THREE.SRGBColorSpace;
+      assets.set(f.name, { kind: 'img', texture, url });
+    }
+  }
+  refresh(); renderAssets();
+}
+document.getElementById('file-input').addEventListener('change', e => loadFiles([...e.target.files]));
+const overlay = document.getElementById('drop-overlay');
+window.addEventListener('dragover', e => { e.preventDefault(); overlay.style.display = 'flex'; });
+window.addEventListener('dragleave', e => { if (!e.relatedTarget) overlay.style.display = 'none'; });
+window.addEventListener('drop', e => { e.preventDefault(); overlay.style.display = 'none'; loadFiles([...e.dataTransfer.files]); });
+
+/* ---------------- export ---------------- */
+document.getElementById('btn-export').onclick = () => {
+  const out = JSON.stringify(env, null, 2);
+  const blob = new Blob([out], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'environment.json'; a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+/* ---------------- toolbar / keys ---------------- */
+const modeButtons = { translate: document.getElementById('mode-translate'),
+                      rotate: document.getElementById('mode-rotate'),
+                      scale: document.getElementById('mode-scale') };
+function setMode(m) {
+  gizmo.setMode(m);
+  for (const k in modeButtons) modeButtons[k].classList.toggle('active', k === m);
+}
+modeButtons.translate.onclick = () => setMode('translate');
+modeButtons.rotate.onclick = () => setMode('rotate');
+modeButtons.scale.onclick = () => setMode('scale');
+
+document.getElementById('btn-add').onclick = () => {
+  env.objects.push({ model: '', texture: '', translucent: false,
+                     position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] });
+  selection = { type: 'object', index: env.objects.length - 1 };
+  refresh();
+};
+function deleteSelected() {
+  if (selection.type !== 'object') return;
+  env.objects.splice(selection.index, 1);
+  selection = { type: null, index: -1 };
+  refresh();
+}
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'w' || e.key === 'W') setMode('translate');
+  if (e.key === 'e' || e.key === 'E') setMode('rotate');
+  if (e.key === 'r' || e.key === 'R') setMode('scale');
+  if (e.key === 'Delete') deleteSelected();
+  if (e.key === 'f' || e.key === 'F') {
+    const t = selectedTarget();
+    if (t) { orbit.target.copy(t.position); orbit.update(); }
+  }
+});
+
+/* click-select in viewport */
+const raycaster = new THREE.Raycaster();
+renderer.domElement.addEventListener('pointerdown', e => {
+  if (e.button !== 0 || gizmo.dragging) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  const ndc = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1,
+                                -((e.clientY - rect.top) / rect.height) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const hits = raycaster.intersectObjects([playerGroup, screenMesh, ...objectsGroup.children], true);
+  if (!hits.length) return;
+  let obj = hits[0].object;
+  while (obj.parent && obj.parent !== scene && obj.parent !== objectsGroup) obj = obj.parent;
+  if (obj === playerGroup) selection = { type: 'player', index: -1 };
+  else if (obj === screenMesh) selection = { type: 'screen', index: -1 };
+  else if (obj.parent === objectsGroup) selection = { type: 'object', index: obj.userData.index };
+  refresh();
+});
+
+/* ---------------- loop ---------------- */
+function refresh() { syncScene(); renderTree(); renderInspector(); }
+function resize() {
+  const w = viewport.clientWidth, h = viewport.clientHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+refresh();
+renderer.setAnimationLoop(() => renderer.render(scene, camera));
+</script>
+</body>
+</html>
